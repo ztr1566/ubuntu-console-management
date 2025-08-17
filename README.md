@@ -1,3 +1,50 @@
+graph TD
+    subgraph "Developer's Local Machine"
+        dev[Developer]
+    end
+
+    subgraph "External Services"
+        github[("GitHub Repositories<br>- jenkins-pipeline-app<br>- jenkins-shared-lib<br>- my-app-manifests")]
+    end
+
+    subgraph "AWS Cloud (us-east-1)"
+        subgraph "IAM"
+            iam_user["IAM User<br>(devops-project-admin)"]
+            iam_role["IAM Role<br>(EBS_CSI_DriverRole)"]
+        end
+
+        subgraph "EC2 Compute"
+            jenkins_master["EC2: Jenkins Master<br>(t3.medium)"]
+            jenkins_agent["EC2: Jenkins Agent<br>(t3.medium)"]
+        end
+
+        subgraph "EKS Cluster (my-devops-cluster)"
+            eks_cp["EKS Control Plane"]
+            subgraph "Worker Nodes (t3.medium)"
+                argo["ArgoCD Pods"]
+                monitoring["Prometheus & Grafana Pods"]
+                app["Deployed Application Pods"]
+            end
+        end
+
+        subgraph "Storage & Registry"
+            ecr["ECR Repository<br>(my-ubuntu-app)"]
+            ebs["EBS Volumes<br>(For Prometheus)"]
+        end
+    end
+
+    dev -- "git push" --> github
+    github -- "Webhook" --> jenkins_master
+    jenkins_master -- "Delegates Job" --> jenkins_agent
+    jenkins_agent -- "Builds & Pushes Image" --> ecr
+    jenkins_agent -- "Updates Manifests" --> github
+    argo -- "Monitors Repo" --> github
+    argo -- "Deploys App" --> app
+    app -- "Pulls Image" --> ecr
+    monitoring -- "Scrapes Metrics" --> app
+    monitoring -- "Uses Storage" --> ebs
+    iam_role -- "Grants Permission" --> ebs
+
 # Welcome to Ubuntu Console Management
 
 ## How can I edit this code?
